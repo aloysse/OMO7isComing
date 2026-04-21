@@ -2,6 +2,9 @@
 """Fetch hotel vacancies and notify Telegram."""
 
 from __future__ import annotations
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 import json
 import os
@@ -36,10 +39,28 @@ def fetch_json(url: str, params: dict[str, str] | None = None) -> dict[str, Any]
     if params:
         full_url = f"{url}?{urlencode(params)}"
 
+    print(f"[DEBUG] Request URL: {full_url}")
+
     req = Request(full_url, headers={"User-Agent": "vacancy-monitor/1.0"})
-    with urlopen(req, timeout=30) as resp:
-        body = resp.read().decode("utf-8")
-    return json.loads(body)
+
+    try:
+        with urlopen(req, timeout=30) as resp:
+            body = resp.read().decode("utf-8")
+            print(f"[DEBUG] Response status: {resp.status}")
+            print(f"[DEBUG] Response body (first 500 chars): {body[:500]}")
+            return json.loads(body)
+
+    except HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="replace")
+        print(f"[DEBUG] HTTPError status: {exc.code}", file=sys.stderr)
+        print(f"[DEBUG] HTTPError URL: {full_url}", file=sys.stderr)
+        print(f"[DEBUG] HTTPError body (first 500 chars): {error_body[:500]}", file=sys.stderr)
+        raise
+
+    except URLError as exc:
+        print(f"[DEBUG] URLError URL: {full_url}", file=sys.stderr)
+        print(f"[DEBUG] URLError reason: {exc.reason}", file=sys.stderr)
+        raise
 
 
 def parse_target_dates(raw_dates: str) -> list[str]:
