@@ -58,5 +58,5 @@ python monitor.py
 
 - 檔案：`.github/workflows/daily-vacancy-check.yml`
 - `cron: "0 1 * * *"` 代表每天 UTC 01:00（即台灣時間 09:00）執行。
-- Workflow 已設定 `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`，可提前避免 Node.js 20 deprecation 問題。
+- Workflow 已設定 `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`，並使用 `actions/checkout@v6` + `actions/setup-python@v6`，可避免 Node.js 20 deprecation 問題。
 - 也可從 Actions 頁面手動執行（`workflow_dispatch`）。
