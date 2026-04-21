@@ -20,6 +20,7 @@ DEFAULT_QUERY = {
     "underFour": "0",
     "stayLength": "5",
     "lang": "CH",
+    "_":"1776783640791"
 }
 
 
