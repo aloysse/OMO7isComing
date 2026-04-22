@@ -13,8 +13,9 @@ from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+
+HOTEL_URL = "https://hoshinoresorts.com/zh_tw/hotels/omo7asahikawa/roomsearch/"
+HOTEL_LINK_TEXT = "OMO7 連結"
 
 DEFAULT_QUERY = {
     "hotelId": "0000000201",
@@ -153,17 +154,47 @@ def build_message(target_dates: list[str], vacancies: dict[str, dict[str, Any]],
 
     lines.extend(available_lines)
     lines.append(f"匯率：1 JPY ≈ {rate} TWD")
+    lines.append(f'<a href="{HOTEL_URL}">{HOTEL_LINK_TEXT}</a>')
     return "\n".join(lines)
 
 
 def send_telegram_message(token: str, chat_id: str, text: str) -> None:
     api = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = urlencode({"chat_id": chat_id, "text": text}).encode("utf-8")
-    req = Request(api, data=payload, method="POST")
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": "true",
+    }
+    req = Request(api, data=urlencode(payload).encode("utf-8"), method="POST")
     with urlopen(req, timeout=30) as resp:
         body = json.loads(resp.read().decode("utf-8"))
-    if not body.get("ok"):
-        raise RuntimeError(f"Telegram API error: {body}")
+    if body.get("ok"):
+        return
+
+    description = str(body.get("description", ""))
+    if "parse entities" in description.lower():
+        fallback_text = text.replace(
+            f'<a href="{HOTEL_URL}">{HOTEL_LINK_TEXT}</a>',
+            f"{HOTEL_LINK_TEXT}：{HOTEL_URL}",
+        )
+        fallback_payload = {
+            "chat_id": chat_id,
+            "text": fallback_text,
+            "disable_web_page_preview": "true",
+        }
+        fallback_req = Request(
+            api,
+            data=urlencode(fallback_payload).encode("utf-8"),
+            method="POST",
+        )
+        with urlopen(fallback_req, timeout=30) as resp:
+            fallback_body = json.loads(resp.read().decode("utf-8"))
+        if fallback_body.get("ok"):
+            return
+        raise RuntimeError(f"Telegram API fallback error: {fallback_body}")
+
+    raise RuntimeError(f"Telegram API error: {body}")
 
 
 def main() -> int:
