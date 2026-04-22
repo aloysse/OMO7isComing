@@ -78,12 +78,15 @@ def parse_target_dates(raw_dates: str) -> list[str]:
 
 
 def twd_rate_per_jpy() -> Decimal:
-    data = fetch_json("https://api.frankfurter.app/latest", {"from": "JPY", "to": "TWD"})
+    data = fetch_json(
+        "https://api.frankfurter.dev/v2/rates",
+        {"base": "JPY", "quotes": "TWD"},
+    )
+    print(f"[DEBUG] FX payload: {data}")
     rate = data.get("rates", {}).get("TWD")
     if rate is None:
         raise RuntimeError("Unable to fetch JPY->TWD exchange rate")
     return Decimal(str(rate))
-
 
 def group_dates_by_month(target_dates: list[str]) -> dict[str, list[str]]:
     grouped: dict[str, list[str]] = defaultdict(list)
