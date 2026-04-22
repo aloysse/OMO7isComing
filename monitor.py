@@ -22,6 +22,7 @@ DEFAULT_QUERY = {
     "underTwelve": "0",
     "underFour": "0",
     "stayLength": "5",
+    "monthlyDate": "2027%2F02%2F01",
     "lang": "CH",
     "_":"1776783640791"
 }
