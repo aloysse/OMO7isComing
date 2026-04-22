@@ -76,16 +76,27 @@ def parse_target_dates(raw_dates: str) -> list[str]:
         raise RuntimeError("TARGET_DATES is empty")
     return result
 
-
 def twd_rate_per_jpy() -> Decimal:
     data = fetch_json(
         "https://api.frankfurter.dev/v2/rates",
         {"base": "JPY", "quotes": "TWD"},
     )
     print(f"[DEBUG] FX payload: {data}")
-    rate = data.get("rates", {}).get("TWD")
+
+    if not isinstance(data, list):
+        raise RuntimeError(f"Unexpected FX response type: {type(data).__name__}")
+
+    if len(data) == 0:
+        raise RuntimeError("FX response is empty")
+
+    item = data[0]
+    if not isinstance(item, dict):
+        raise RuntimeError("Unexpected FX item format")
+
+    rate = item.get("rate")
     if rate is None:
-        raise RuntimeError("Unable to fetch JPY->TWD exchange rate")
+        raise RuntimeError("Missing 'rate' in FX response")
+
     return Decimal(str(rate))
 
 def group_dates_by_month(target_dates: list[str]) -> dict[str, list[str]]:
