@@ -127,7 +127,7 @@ def fetch_vacancy_map(api_url: str, target_dates: list[str]) -> dict[str, dict[s
 
 
 def build_message(target_dates: list[str], vacancies: dict[str, dict[str, Any]], rate: Decimal) -> str:
-    lines = ["🏨 飯店訂房監控結果"]
+    lines = ["🏨 OMO7 旭川空房回報"]
     available_lines: list[str] = []
 
     for date_iso in target_dates:
