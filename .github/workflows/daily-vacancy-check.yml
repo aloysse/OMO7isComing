@@ -3,7 +3,7 @@ name: Daily Hotel Vacancy Check
 on:
   schedule:
     # 10:21 Asia/Taipei = 01:00 UTC
-    - cron: "21,51 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 env:
