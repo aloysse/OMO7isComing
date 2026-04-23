@@ -13,8 +13,9 @@ from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+
+HOTEL_URL = "https://hoshinoresorts.com/zh_tw/hotels/omo7asahikawa/roomsearch/"
+HOTEL_LINK_TEXT = "OMO7 連結"
 
 DEFAULT_QUERY = {
     "hotelId": "0000000201",
@@ -75,6 +76,14 @@ def parse_target_dates(raw_dates: str) -> list[str]:
     if not result:
         raise RuntimeError("TARGET_DATES is empty")
     return result
+
+
+def parse_chat_ids(raw_chat_ids: str) -> list[str]:
+    chat_ids = [chat_id.strip() for chat_id in raw_chat_ids.split(",") if chat_id.strip()]
+    if not chat_ids:
+        raise RuntimeError("TELEGRAM_CHAT_IDS is empty")
+    return chat_ids
+
 
 def twd_rate_per_jpy() -> Decimal:
     data = fetch_json(
@@ -153,23 +162,54 @@ def build_message(target_dates: list[str], vacancies: dict[str, dict[str, Any]],
 
     lines.extend(available_lines)
     lines.append(f"匯率：1 JPY ≈ {rate} TWD")
+    lines.append(f'<a href="{HOTEL_URL}">{HOTEL_LINK_TEXT}</a>')
     return "\n".join(lines)
 
 
 def send_telegram_message(token: str, chat_id: str, text: str) -> None:
     api = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = urlencode({"chat_id": chat_id, "text": text}).encode("utf-8")
-    req = Request(api, data=payload, method="POST")
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": "true",
+    }
+    req = Request(api, data=urlencode(payload).encode("utf-8"), method="POST")
     with urlopen(req, timeout=30) as resp:
         body = json.loads(resp.read().decode("utf-8"))
-    if not body.get("ok"):
-        raise RuntimeError(f"Telegram API error: {body}")
+    if body.get("ok"):
+        return
+
+    description = str(body.get("description", ""))
+    if "parse entities" in description.lower():
+        fallback_text = text.replace(
+            f'<a href="{HOTEL_URL}">{HOTEL_LINK_TEXT}</a>',
+            f"{HOTEL_LINK_TEXT}：{HOTEL_URL}",
+        )
+        fallback_payload = {
+            "chat_id": chat_id,
+            "text": fallback_text,
+            "disable_web_page_preview": "true",
+        }
+        fallback_req = Request(
+            api,
+            data=urlencode(fallback_payload).encode("utf-8"),
+            method="POST",
+        )
+        with urlopen(fallback_req, timeout=30) as resp:
+            fallback_body = json.loads(resp.read().decode("utf-8"))
+        if fallback_body.get("ok"):
+            return
+        raise RuntimeError(f"Telegram API fallback error: {fallback_body}")
+
+    raise RuntimeError(f"Telegram API error: {body}")
 
 
 def main() -> int:
     api_url = getenv_required("API_URL")
     bot_token = getenv_required("TELEGRAM_BOT_TOKEN")
-    chat_id = getenv_required("TELEGRAM_CHAT_ID")
+    raw_chat_ids = getenv_required("TELEGRAM_CHAT_IDS")
+    chat_ids = parse_chat_ids(raw_chat_ids)
     target_dates = parse_target_dates(
         os.getenv("TARGET_DATES", "2026-02-15,2026-02-28")
     )
@@ -177,8 +217,9 @@ def main() -> int:
     rate = twd_rate_per_jpy()
     vacancies = fetch_vacancy_map(api_url, target_dates)
     message = build_message(target_dates, vacancies, rate)
-    send_telegram_message(bot_token, chat_id, message)
-    print("Message sent to Telegram")
+    for chat_id in chat_ids:
+        send_telegram_message(bot_token, chat_id, message)
+        print(f"Message sent to Telegram chat_id={chat_id}")
     return 0
 
 
