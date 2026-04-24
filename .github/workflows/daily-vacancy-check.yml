@@ -2,8 +2,8 @@ name: Daily Hotel Vacancy Check
 
 on:
   schedule:
-    # 09:00 Asia/Taipei = 01:00 UTC
-    - cron: "0 1 * * *"
+    # UTC+8:00 9:17 AM every day
+    - cron: "17 1 * * *"
   workflow_dispatch:
 
 env:
@@ -26,6 +26,6 @@ jobs:
         env:
           API_URL: ${{ secrets.API_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
           TARGET_DATES: "2026-02-15,2026-02-28"
         run: python monitor.py
