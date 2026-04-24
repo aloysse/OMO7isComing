@@ -166,6 +166,17 @@ def build_message(target_dates: list[str], vacancies: dict[str, dict[str, Any]],
     return "\n".join(lines)
 
 
+def build_failure_message(error: Exception) -> str:
+    return "\n".join(
+        [
+            "⚠️ OMO7 旭川空房監控失敗",
+            "資料獲取失敗或流程執行異常，請檢查設定與 API 狀態。",
+            f"錯誤原因：{error}",
+            f"{HOTEL_LINK_TEXT}：{HOTEL_URL}",
+        ]
+    )
+
+
 def send_telegram_message(token: str, chat_id: str, text: str) -> None:
     api = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
@@ -205,22 +216,41 @@ def send_telegram_message(token: str, chat_id: str, text: str) -> None:
     raise RuntimeError(f"Telegram API error: {body}")
 
 
+def send_telegram_messages(token: str, chat_ids: list[str], text: str) -> None:
+    errors: list[str] = []
+    for chat_id in chat_ids:
+        try:
+            send_telegram_message(token, chat_id, text)
+            print(f"Message sent to Telegram chat_id={chat_id}")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{chat_id}: {exc}")
+            print(f"Failed to send message to Telegram chat_id={chat_id}: {exc}", file=sys.stderr)
+    if errors:
+        raise RuntimeError("Failed Telegram deliveries: " + "; ".join(errors))
+
+
 def main() -> int:
-    api_url = getenv_required("API_URL")
     bot_token = getenv_required("TELEGRAM_BOT_TOKEN")
     raw_chat_ids = getenv_required("TELEGRAM_CHAT_IDS")
     chat_ids = parse_chat_ids(raw_chat_ids)
-    target_dates = parse_target_dates(
-        os.getenv("TARGET_DATES", "2026-02-15,2026-02-28")
-    )
+    try:
+        api_url = getenv_required("API_URL")
+        target_dates = parse_target_dates(
+            os.getenv("TARGET_DATES", "2026-02-15,2026-02-28")
+        )
 
-    rate = twd_rate_per_jpy()
-    vacancies = fetch_vacancy_map(api_url, target_dates)
-    message = build_message(target_dates, vacancies, rate)
-    for chat_id in chat_ids:
-        send_telegram_message(bot_token, chat_id, message)
-        print(f"Message sent to Telegram chat_id={chat_id}")
-    return 0
+        rate = twd_rate_per_jpy()
+        vacancies = fetch_vacancy_map(api_url, target_dates)
+        message = build_message(target_dates, vacancies, rate)
+        send_telegram_messages(bot_token, chat_ids, message)
+        return 0
+    except Exception as exc:  # noqa: BLE001
+        failure_message = build_failure_message(exc)
+        try:
+            send_telegram_messages(bot_token, chat_ids, failure_message)
+        except Exception as notify_exc:  # noqa: BLE001
+            print(f"Error: failed to send failure notification: {notify_exc}", file=sys.stderr)
+        raise
 
 
 if __name__ == "__main__":
