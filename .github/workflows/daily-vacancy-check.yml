@@ -26,6 +26,6 @@ jobs:
         env:
           API_URL: ${{ secrets.API_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
           TARGET_DATES: "2026-02-15,2026-02-28"
         run: python monitor.py
