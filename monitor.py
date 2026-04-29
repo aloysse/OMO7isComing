@@ -153,6 +153,7 @@ def build_message(target_dates: list[str], vacancies: dict[str, dict[str, Any]],
 
         jpy = Decimal(str(item.get("charge", {}).get("searchChargeDetail", {}).get("unitCharge", 0)))
         twd = (jpy * rate).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+        available_lines.append("🎉 恭喜")
         available_lines.append(
             f"- {date_iso}：有空房 {vacancy} 間，價格 JPY {jpy:,}（約 TWD {twd:,}）"
         )
